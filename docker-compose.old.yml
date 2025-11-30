@@ -42,6 +42,35 @@ services:
       - base
       - all
 
+  # files service - local aws alternative, use this or file-storage
+
+  localstack:
+    container_name: "${LOCALSTACK_DOCKER_NAME:-localstack}"
+    image: localstack/localstack:latest
+    ports:
+      - "127.0.0.1:4566:4566" # LocalStack Gateway
+      # - "127.0.0.1:4567:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
+    environment:
+      # LocalStack configuration: https://docs.localstack.cloud/references/configuration/
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:-}
+      - DEBUG=${DEBUG:-0}
+      - SERVICES=s3:4566
+      - HOSTNAME=localstack
+      - HOSTNAME_EXTERNAL=localstack
+      - DEFAULT_REGION=us-east-2
+      - DISABLE_CUSTOM_CORS_S3=true
+      - DISABLE_CORS_CHECKS=true
+      - EXTRA_CORS_ALLOWED_ORIGINS=*
+    volumes:
+      - "./docker/localstack/scripts/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh" # ready hook
+      - "./docker/localstack/data:/var/lib/localstack:rw"
+      - "/var/run/docker.sock:/var/run/docker.sock:rw"
+    profiles:
+      - base
+    networks:
+      - host
+
   # quadratic services - client, api, multiplayer, files, connection
 
   quadratic-client:
@@ -341,6 +370,210 @@ services:
       - host
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  ory-auth-mail:
+    image: oryd/mailslurper:latest-smtps
+    container_name: ory-auth-mail
+    ports:
+      - "1025:1025"
+      - "4436:4436"
+      - "4437:4437"
+      - "8080:8080"
+    profiles:
+      - ory
+      - all
+    networks:
+      - host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # databases to be used for testing by the connection service - postgres, mysql, mssql
+
+  postgres-connection:
+    image: postgres:17.4
+    restart: always
+    container_name: postgres-connection
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: postgres-connection
+      POSTGRES_USER: user
+      PGUSER: user
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d postgres-connection"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./docker/postgres-connection/data:/var/lib/postgresql/data
+      - ./docker/postgres-connection/scripts:/docker-entrypoint-initdb.d
+    profiles:
+      - quadratic-connection
+      - quadratic-connection-db
+      - quadratic-connection-db-postgres
+
+  ssh-postgres-connection:
+    build:
+      context: .
+      dockerfile: docker/ssh-postgres-connection/Dockerfile
+    restart: always
+    container_name: ssh-postgres-connection
+    ports:
+      - "2222:22"
+    environment:
+      POSTGRES_DB: ssh-postgres-connection
+      POSTGRES_USER: user
+      PGUSER: user
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d ssh-postgres-connection"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./docker/ssh-postgres-connection/data:/var/lib/postgresql/data
+      - ./docker/ssh-postgres-connection/scripts:/docker-entrypoint-initdb.d
+    profiles:
+      - quadratic-connection
+      - quadratic-connection-db
+      - quadratic-connection-db-postgres-ssh
+
+  mysql-connection:
+    image: mysql:8
+    restart: always
+    container_name: mysql-connection
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_DATABASE: mysql-connection
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./docker/mysql-connection/data:/var/lib/mysql
+      - ./docker/mysql-connection/scripts:/docker-entrypoint-initdb.d/
+    profiles:
+      - quadratic-connection
+      - quadratic-connection-db
+      - quadratic-connection-db-mysql
+
+  ssh-mysql-connection:
+    build:
+      context: .
+      dockerfile: docker/ssh-mysql-connection/Dockerfile
+    restart: always
+    container_name: ssh-mysql-connection
+    ports:
+      - "2223:22"
+    environment:
+      MYSQL_DATABASE: mysql-connection
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+    volumes:
+      - ./docker/ssh-mysql-connection/data:/var/opt/mssql
+      - ./docker/ssh-mysql-connection/scripts:/docker-entrypoint-initdb.d/
+    profiles:
+      - quadratic-connection
+      - quadratic-connection-db
+      - quadratic-connection-db-mysql-ssh
+
+  mariadb-connection:
+    image: mariadb:latest
+    restart: always
+    container_name: mariadb-connection
+    ports:
+      - 13306:3306
+    environment:
+      MARIADB_DATABASE: mariadb-connection
+      MARIADB_USER: user
+      MARIADB_PASSWORD: password
+      MARIADB_ROOT_PASSWORD: password
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./docker/mariadb-connection/data:/var/lib/mysql
+      - ./docker/mariadb-connection/scripts:/docker-entrypoint-initdb.d
+    profiles:
+      - quadratic-connection
+      - quadratic-connection-db
+      - quadratic-connection-db-mariadb
+
+      # This service covers non-ssh mssql connections as well since it's a complex build
+  ssh-mssql-connection:
+    build:
+      context: .
+      # platforms:
+      #   - "linux/amd64"
+      dockerfile: docker/ssh-mssql-connection/Dockerfile
+    restart: always
+    container_name: ssh-mssql-connection
+    ports:
+      - "1433:1433"
+      - "2224:22"
+    environment:
+      MSSQL_SA_PASSWORD: yourStrong(!)Password
+      # MSSQL_PID: Evaluation
+    volumes:
+      - ./docker/ssh-mssql-connection/data:/var/opt/mssql
+      - ./docker/ssh-mssql-connection/scripts:/docker-entrypoint-initdb.d/
+    profiles:
+      - quadratic-connection
+      - quadratic-connection-db
+      - quadratic-connection-db-mssql
+      - quadratic-connection-db-mssql-ssh
+
+  bigquery-connection:
+    image: ghcr.io/goccy/bigquery-emulator:latest
+    platform: linux/x86_64
+    restart: always
+    container_name: bigquery-connection
+    command: |
+      --project=test --data-from-yaml=/work/data.yaml
+    ports:
+      - "9050:9050"
+      - "9060:9060"
+    volumes:
+      - ./docker/bigquery-connection/setup:/work
+    working_dir: /work
+    profiles:
+      - quadratic-connection
+      - quadratic-connection-db
+      - quadratic-connection-db-bigquery
+
+  cockraochdb-connection:
+    image: cockroachdb/cockroach:latest
+    restart: always
+    container_name: cockroachdb-connection
+    environment:
+      COCKROACH_DATABASE: cockroachdb_connection
+      # COCKROACH_USER: user
+      # COCKROACH_PASSWORD: password
+    ports:
+      - "26257:26257"
+    command: start-single-node --insecure
+    healthcheck:
+      test: ["CMD", "cockroach", "node", "status", "--insecure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./docker/cockroachdb-connection/data:/cockroach/cockroach-data
+      - ./docker/cockroachdb-connection/scripts:/docker-entrypoint-initdb.d
+    profiles:
+      - quadratic-connection
+      - quadratic-connection-db
+      - quadratic-connection-db-cockroachdb
 
 networks:
   host:
