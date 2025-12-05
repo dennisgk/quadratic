@@ -229,7 +229,7 @@ services:
       - quadratic-files
       - backend
       - all
-    network:
+    networks:
       - host
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -248,7 +248,7 @@ services:
       - ./docker/api-files:/api-files
     profiles:
       - all
-    network:
+    networks:
       - host
     extra_hosts:
       - "host.docker.internal:host-gateway"
