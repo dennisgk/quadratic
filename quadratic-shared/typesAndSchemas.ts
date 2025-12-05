@@ -592,6 +592,15 @@ export const ApiSchemas = {
   '/v0/auth/reset-password.POST.response': z.object({
     message: z.string(),
   }),
+  
+  /**
+   * ===========================================================================
+   * Data
+   * ===========================================================================
+   */
+  '/v0/data/files/:name.POST.response': z.object({
+    sha256sum: z.string(),
+  }),
 };
 
 /**

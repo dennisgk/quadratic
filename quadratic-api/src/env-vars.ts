@@ -107,3 +107,4 @@ function ensureSampleTokenNotUsedInProduction() {
 
 export const isRunningInTest = NODE_ENV === 'test';
 export const debugAndNotInProduction = ENVIRONMENT !== 'production' && !!DEBUG;
+export const API_FILES_DIR = "/api-files";

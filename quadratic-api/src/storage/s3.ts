@@ -20,6 +20,7 @@ let s3Client: S3Client;
 export enum S3Bucket {
   FILES = 'files',
   ANALYTICS = 'analytics',
+  MEMORY = 'memory',
 }
 
 export const getBucketName = (bucket: S3Bucket) => {

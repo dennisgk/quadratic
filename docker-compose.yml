@@ -129,6 +129,8 @@ services:
       QUADRATIC_FILE_URI_PUBLIC: ${QUADRATIC_FILES_URL_EXTERNAL}
       LICENSE_KEY: ${LICENSE_KEY}
     restart: "always"
+    volumes:
+      - ./docker/api-files:/api-files
     ports:
       - "8000:8000"
     command: bash -c "npm run prisma:migrate:deploy --workspace=quadratic-api && npm run start:prod --workspace=quadratic-api"
