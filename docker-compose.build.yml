@@ -35,3 +35,10 @@ services:
       dockerfile: quadratic-connection/Dockerfile
       args:
         - binary=quadratic-connection
+
+  quadratic-simple-connection:
+    build:
+      context: .
+      dockerfile: quadratic-simple-connection/Dockerfile
+      args:
+        - binary=quadratic-simple-connection

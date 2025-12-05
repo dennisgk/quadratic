@@ -129,8 +129,6 @@ services:
       QUADRATIC_FILE_URI_PUBLIC: ${QUADRATIC_FILES_URL_EXTERNAL}
       LICENSE_KEY: ${LICENSE_KEY}
     restart: "always"
-    volumes:
-      - ./docker/api-files:/api-files
     ports:
       - "8000:8000"
     command: bash -c "npm run prisma:migrate:deploy --workspace=quadratic-api && npm run start:prod --workspace=quadratic-api"
@@ -232,6 +230,25 @@ services:
       - backend
       - all
     networks:
+      - host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  quadratic-simple-connection:
+    extends:
+      file: docker-compose.${ECR_OR_BUILD:-build}.yml
+      service: quadratic-simple-connection
+    container_name: simple-connection
+    environment:
+      ORY_ADMIN_HOST: ${ORY_ADMIN_HOST}
+    restart: "always"
+    ports:
+      - "3010:3010"
+    volumes:
+      - ./docker/api-files:/api-files
+    profiles:
+      - all
+    network:
       - host
     extra_hosts:
       - "host.docker.internal:host-gateway"

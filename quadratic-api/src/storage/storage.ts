@@ -1,4 +1,4 @@
-import multer, { Multer } from 'multer';
+import type multer from 'multer';
 import { STORAGE_TYPE } from '../env-vars';
 import { getPresignedStorageUrl, multerFileSystemStorage, upload } from './fileSystem';
 import { generatePresignedUrl, multerS3Storage, S3Bucket, uploadStringAsFileS3 } from './s3';
@@ -50,16 +50,12 @@ export const uploadFile = async (
 };
 
 // Multer middleware for file uploads.
-export const uploadMiddleware = (bucket: S3Bucket): Multer => {
-  if(bucket == 'memory'){
-    return multer({ storage: multer.memoryStorage() });
-  }
-
+export const uploadMiddleware = (bucket: S3Bucket): multer.Multer => {
   switch (STORAGE_TYPE) {
     case 's3':
       return multerS3Storage(bucket);
     case 'file-system':
-      return multerFileSystemStorage as unknown as Multer;
+      return multerFileSystemStorage as unknown as multer.Multer;
     default:
       throw new Error(`Unsupported storage type in uploadMiddleware(): ${STORAGE_TYPE}`);
   }
