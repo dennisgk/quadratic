@@ -125,6 +125,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   python3-pip \
   brotli \
   pigz \
+  bzip2 \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /quadratic
@@ -147,9 +148,16 @@ RUN npm install --no-audit --no-fund --ignore-scripts
 COPY --link ./quadratic-kernels/python-wasm/. ./quadratic-kernels/python-wasm/
 COPY --link ./quadratic-shared/. ./quadratic-shared/
 COPY --link ./quadratic-client/. ./quadratic-client/
+COPY --link ./quadratic-kernels/pyodide-custom-lib/. ./quadratic-kernels/pyodide-custom-lib/.
+
+# Download and verify Pyodide into quadratic-client/public/pyodide
+RUN chmod +x ./quadratic-client/download-pyodide.sh && \
+    cd quadratic-client && \
+    ./download-pyodide.sh
 
 # Run the packaging script for quadratic_py
 RUN ./quadratic-kernels/python-wasm/package.sh --no-poetry
+RUN ./quadratic-kernels/pyodide-custom-lib/build_wheel.sh
 
 # Hash of the environment variables, as a cache buster
 # This is non empty when env variables are set in the github action

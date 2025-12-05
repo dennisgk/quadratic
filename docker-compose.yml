@@ -217,6 +217,7 @@ services:
       - "3002:3002"
     volumes:
       - ./docker/file-storage:/file-storage:rw
+      - ./docker/synced-data:/synced-data:rw
     depends_on:
       redis:
         condition: service_healthy
@@ -259,7 +260,8 @@ services:
     ports:
       - "3003:3003"
     volumes:
-      - ./docker/file-storage-synced-data:/file-storage-synced-data:rw
+      - ./docker/file-storage:/file-storage:rw
+      - ./docker/synced-data:/synced-data:rw
     depends_on:
       quadratic-client:
         condition: service_healthy

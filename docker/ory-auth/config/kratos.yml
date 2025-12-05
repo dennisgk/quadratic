@@ -5,11 +5,12 @@ dsn: memory
 
 serve:
   public:
-    base_url: http://localhost:4433/
+    base_url: https://quadratickratos.kountouris.org/
     cors:
       enabled: true
       allowed_origins:
-        - http://localhost:3000
+        - https://quadratic.kountouris.org
+        - https://quadraticlogin.kountouris.org
       allowed_methods:
         - POST
         - GET
@@ -28,13 +29,17 @@ serve:
     base_url: http://kratos:4434/
 
 selfservice:
-  default_browser_return_url: http://localhost:3000
+  default_browser_return_url: https://quadratic.kountouris.org
+
   allowed_return_urls:
-    - http://localhost
-    - http://localhost:4455
-    - http://localhost:3000
-    - http://localhost:19006/Callback
-    - exp://localhost:8081/--/Callback
+    - https://quadratic.kountouris.org
+    - https://quadraticlogin.kountouris.org
+    # keep the mobile/testing ones if you still need them:
+    # - http://localhost
+    # - http://localhost:4455
+    # - http://localhost:3000
+    # - http://localhost:19006/Callback
+    # - exp://localhost:8081/--/Callback
 
   methods:
     password:
@@ -52,41 +57,41 @@ selfservice:
 
   flows:
     error:
-      ui_url: http://localhost:4455/error
+      ui_url: https://quadraticlogin.kountouris.org/error
 
     settings:
-      ui_url: http://localhost:4455/settings
+      ui_url: https://quadraticlogin.kountouris.org/settings
       privileged_session_max_age: 15m
       required_aal: highest_available
 
     recovery:
       enabled: true
-      ui_url: http://localhost:4455/recovery
+      ui_url: https://quadraticlogin.kountouris.org/recovery
       use: link
 
     verification:
-      # we disable verification for self-hosting
       enabled: false
-      ui_url: http://localhost:4455/verification
+      ui_url: https://quadraticlogin.kountouris.org/verification
       use: link
       after:
-        default_browser_return_url: http://localhost:3000/login-result
+        default_browser_return_url: https://quadratic.kountouris.org/login-result
 
     logout:
       after:
-        default_browser_return_url: http://localhost:4455/login
+        # you can choose app or UI here – this keeps old behavior (back to login page)
+        default_browser_return_url: https://quadraticlogin.kountouris.org/login
 
     login:
-      ui_url: http://localhost:4455/login
+      ui_url: https://quadraticlogin.kountouris.org/login
       lifespan: 10m
 
     registration:
       lifespan: 10m
-      ui_url: http://localhost:4455/registration
+      ui_url: https://quadraticlogin.kountouris.org/registration
       after:
-        default_browser_return_url: http://localhost:3000/login-result
+        default_browser_return_url: https://quadratic.kountouris.org/login-result
         password:
-          default_browser_return_url: http://localhost:3000/login-result
+          default_browser_return_url: https://quadratic.kountouris.org/login-result
           hooks:
             - hook: session
             - hook: show_verification_ui
@@ -99,8 +104,9 @@ session:
           jwks_url: http://host.docker.internal:3000/.well-known/jwks.json
           claims_mapper_url: file:///etc/config/kratos/claims.jsonnet
           ttl: 24h # 24 hours (defaults to 10 minutes)
+
 cookies:
-  domain: "localhost"
+  domain: "kountouris.org"  # or ".kountouris.org" if you prefer
   path: /
   same_site: Lax
 

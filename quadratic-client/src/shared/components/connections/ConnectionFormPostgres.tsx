@@ -84,7 +84,7 @@ export const ConnectionForm: ConnectionFormComponent<FormValues> = ({ form, chil
                   <Input autoComplete="off" {...field} />
                 </FormControl>
                 <FormMessage />
-                <ConnectionFormMessageHost value={field.value} />
+                <ConnectionFormMessageHost value={field.value!} />
               </FormItem>
             )}
           />

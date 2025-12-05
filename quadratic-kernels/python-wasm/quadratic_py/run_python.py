@@ -5,7 +5,7 @@ from typing import Tuple
 import micropip
 import pandas as pd
 import pyodide
-from quadratic_py import code_trace, plotly_patch, process_output
+from quadratic_py import code_trace, plotly_patch, process_output, mpl_patch, custom_patch
 
 from .quadratic_api.quadratic import (getCell, getCells, q, rc, rel_cell,
                                       rel_cells)
@@ -27,7 +27,7 @@ def error_result(
         "formatted_code": code,
     }
 
-async def run_python(code: str, pos: Tuple[int, int]):
+async def run_python(code: str, pos: Tuple[int, int], jwt: str):
     globals = {
         "getCells": getCells,
         "getCell": getCell,
@@ -39,6 +39,7 @@ async def run_python(code: str, pos: Tuple[int, int]):
         "rel_cells": rel_cells,
         "rc": rc,
         "q": q,
+        "jwt": jwt
     }
 
     sout = StringIO()
@@ -47,6 +48,8 @@ async def run_python(code: str, pos: Tuple[int, int]):
     globals['q'] = q(pos)
 
     try:
+        await custom_patch.apply_custom_patch(code, jwt)
+        await mpl_patch.apply_mpl_patch(code)
         plotly_html = await plotly_patch.intercept_plotly_html(code)
 
         # Capture STDOut to sout

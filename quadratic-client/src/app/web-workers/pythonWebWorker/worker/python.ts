@@ -236,7 +236,7 @@ class Python {
 
     try {
       result = await this.pyodide.runPythonAsync(
-        `run_python(${JSON.stringify(message.code)}, (${message.x}, ${message.y}))`
+        `run_python(${JSON.stringify(message.code)}, (${message.x}, ${message.y}), ${JSON.stringify(this.currentJwt ?? '')})`
       );
       output = Object.fromEntries(result.toJs()) as PythonSuccess | PythonError;
       inspectionResults = await this.inspectPython(message.code || '');

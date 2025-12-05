@@ -71,8 +71,8 @@ export const hasReachedFileLimit = async (
   const [maxTotalFiles, maxUserPrivateFiles] = MAX_FILE_COUNT_FOR_PAID_PLAN;
 
   if (!isPrivate) {
-    return totalTeamFiles >= maxTotalFiles;
+    return false; //totalTeamFiles >= maxTotalFiles;
   }
 
-  return userPrivateFiles >= maxUserPrivateFiles;
+  return false; //userPrivateFiles >= maxUserPrivateFiles;
 };
