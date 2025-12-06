@@ -15,7 +15,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 import uvicorn
 
-from .ory_jwt import decode_ory_jwt
+from ory_jwt import decode_ory_jwt
 
 app = FastAPI(title="File Query API")
 
