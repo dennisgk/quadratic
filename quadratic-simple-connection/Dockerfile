@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir \
     h5py \
     numpy \
     httpx \
-    "python-jose[cryptography]"
+    "python-jose[cryptography]" \
+    requests
 
 # Copy the API code
 COPY ./quadratic-simple-connection/api_server.py /app/api_server.py
