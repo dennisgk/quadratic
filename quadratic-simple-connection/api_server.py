@@ -12,12 +12,24 @@ import numpy as np
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError
 import uvicorn
 
 from ory_jwt import decode_ory_jwt
 
 app = FastAPI(title="File Query API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://quadratic.kountouris.org",
+        "https://quadraticsc.kountouris.org",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Directory where your data files live
 API_FILES_DIR = Path("/api-files")
