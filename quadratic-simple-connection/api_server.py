@@ -9,9 +9,13 @@ from typing import Any, List, Optional
 import h5py
 import httpx
 import numpy as np
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError
 import uvicorn
+
+from .ory_jwt import decode_ory_jwt
 
 app = FastAPI(title="File Query API")
 
@@ -22,53 +26,23 @@ API_FILES_DIR = Path("/api-files")
 # Auth: Kratos session check
 # ---------------------------
 
-async def get_current_session(request: Request) -> dict:
-    """
-    Validates the Authorization: Bearer <token> header against the Kratos auth server.
+security = HTTPBearer()  # reads the Authorization: Bearer <token> header
 
-    Uses KRATOS_PUBLIC_URL and calls /sessions/whoami.
-    If the token is invalid or no active session exists, raises 401.
-    """
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-
-    token = auth_header.split(" ", 1)[1].strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="Empty bearer token")
-
-    kratos_host = os.getenv("KRATOS_PUBLIC_URL")
-    if not kratos_host:
-        raise HTTPException(status_code=500, detail="KRATOS_PUBLIC_URL is not configured")
-
-    url = kratos_host.rstrip("/") + "/sessions/whoami"
+async def get_current_session(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
+    token = credentials.credentials
 
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            # 2. Send the token in the 'Cookie' header instead of 'Authorization'
-            resp = await client.get(
-                url,
-                headers={
-                    # Send the session token as a cookie
-                    "Cookie": f"ory_kratos_session={token}",
-                    "Accept": "application/json",
-                },
-            )
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"Failed to contact auth server: {e}")
+        payload = decode_ory_jwt(token)  # add audience=... if needed
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {e}",
+        )
 
-    if resp.status_code != 200:
-        # This will catch 401/403 responses from Kratos for invalid/inactive sessions
-        raise HTTPException(status_code=401, detail="Invalid or inactive session")
-
-    try:
-        session_data = resp.json()
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=502, detail="Auth server returned invalid JSON")
-
-    # You could inspect session_data["identity"] here if needed
-    return session_data
-
+    # Return payload so route handlers can use claims
+    return payload
 
 # ---------------------------
 # Utility: safe path handling

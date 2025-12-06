@@ -1,4 +1,3 @@
-# Dockerfile
 FROM python:3.11-slim
 
 # Install system libs for h5py / HDF5
@@ -15,10 +14,12 @@ RUN pip install --no-cache-dir \
     "uvicorn[standard]" \
     h5py \
     numpy \
-    httpx
+    httpx \
+    "python-jose[cryptography]"
 
 # Copy the API code
 COPY ./quadratic-simple-connection/api_server.py /app/api_server.py
+COPY ./quadratic-simple-connection/ory_jwt.py /app/ory_jwt.py
 
 EXPOSE 3010
 

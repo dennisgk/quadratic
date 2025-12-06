@@ -240,7 +240,7 @@ services:
       service: quadratic-simple-connection
     container_name: simple-connection
     environment:
-      KRATOS_PUBLIC_URL: ${KRATOS_URL_INTERNAL}
+      JWKS_URI: ${JWKS_URI}
     restart: "always"
     ports:
       - "3010:3010"
