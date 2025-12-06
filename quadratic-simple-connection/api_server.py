@@ -19,14 +19,14 @@ app = FastAPI(title="File Query API")
 API_FILES_DIR = Path("/api-files")
 
 # ---------------------------
-# Auth: Ory session check
+# Auth: Kratos session check
 # ---------------------------
 
 async def get_current_session(request: Request) -> dict:
     """
-    Validates the Authorization: Bearer <token> header against the Ory auth server.
+    Validates the Authorization: Bearer <token> header against the Kratos auth server.
 
-    Uses ORY_ADMIN_HOST and calls /sessions/whoami.
+    Uses KRATOS_PUBLIC_URL and calls /sessions/whoami.
     If the token is invalid or no active session exists, raises 401.
     """
     auth_header = request.headers.get("Authorization")
@@ -37,18 +37,20 @@ async def get_current_session(request: Request) -> dict:
     if not token:
         raise HTTPException(status_code=401, detail="Empty bearer token")
 
-    ory_host = os.getenv("ORY_ADMIN_HOST")
-    if not ory_host:
-        raise HTTPException(status_code=500, detail="ORY_ADMIN_HOST is not configured")
+    kratos_host = os.getenv("KRATOS_PUBLIC_URL")
+    if not kratos_host:
+        raise HTTPException(status_code=500, detail="KRATOS_PUBLIC_URL is not configured")
 
-    url = ory_host.rstrip("/") + "/sessions/whoami"
+    url = kratos_host.rstrip("/") + "/sessions/whoami"
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
+            # 2. Send the token in the 'Cookie' header instead of 'Authorization'
             resp = await client.get(
                 url,
                 headers={
-                    "Authorization": f"Bearer {token}",
+                    # Send the session token as a cookie
+                    "Cookie": f"ory_kratos_session={token}",
                     "Accept": "application/json",
                 },
             )
@@ -56,6 +58,7 @@ async def get_current_session(request: Request) -> dict:
         raise HTTPException(status_code=502, detail=f"Failed to contact auth server: {e}")
 
     if resp.status_code != 200:
+        # This will catch 401/403 responses from Kratos for invalid/inactive sessions
         raise HTTPException(status_code=401, detail="Invalid or inactive session")
 
     try:
@@ -326,7 +329,7 @@ async def query_file(
 
     For any other file extension, the full raw file is streamed back.
 
-    Requires a valid Ory session for ALL requests.
+    Requires a valid Kratos session for ALL requests.
     """
     file_path = get_safe_file_path(filename)
 
@@ -375,7 +378,7 @@ async def upload_file(
 
     - Path: POST /data/upload/{filename}
     - Body: raw bytes (any content-type)
-    - Requires a valid Ory session.
+    - Requires a valid Kratos session.
     """
     data = await request.body()
     if not data:

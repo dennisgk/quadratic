@@ -240,7 +240,7 @@ services:
       service: quadratic-simple-connection
     container_name: simple-connection
     environment:
-      ORY_ADMIN_HOST: ${ORY_ADMIN_HOST}
+      KRATOS_PUBLIC_URL: ${KRATOS_URL_INTERNAL}
     restart: "always"
     ports:
       - "3010:3010"
