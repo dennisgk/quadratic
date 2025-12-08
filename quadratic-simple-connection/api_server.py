@@ -141,11 +141,29 @@ def assert_sql_is_read_only(sql: str) -> None:
 def handle_sqlite_query(file_path: Path, body: dict) -> JSONResponse:
     """
     Execute a safe SELECT query on a SQLite database and return rows as JSON.
-    Body must include: {"sql": "SELECT ... "}.
+    Body must include: {"sql": "SELECT ..."}.
+    Optional: {"params": [...]} or {"params": {...}} for parameterized queries.
     """
     sql = body.get("sql")
     if not isinstance(sql, str):
         raise HTTPException(status_code=400, detail="Missing or invalid 'sql' field")
+
+    # ---- Normalize params ----
+    raw_params = body.get("params", None)
+
+    if raw_params is None:
+        params = None  # covers both missing and explicit null
+    elif isinstance(raw_params, (list, tuple)):
+        # JSON arrays -> Python list; convert to tuple for sqlite
+        params = tuple(raw_params)
+    elif isinstance(raw_params, dict):
+        # JSON object -> Python dict; pass through for named params
+        params = raw_params
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 'params' field: must be null, array, or object",
+        )
 
     assert_sql_is_read_only(sql)
 
@@ -179,7 +197,10 @@ def handle_sqlite_query(file_path: Path, body: dict) -> JSONResponse:
 
     try:
         cur = conn.cursor()
-        cur.execute(sql)
+        if params is None:
+            cur.execute(sql)
+        else:
+            cur.execute(sql, params)
         rows = cur.fetchall()
         colnames = [desc[0] for desc in cur.description]
     except sqlite3.Error as e:
@@ -193,7 +214,6 @@ def handle_sqlite_query(file_path: Path, body: dict) -> JSONResponse:
             "rows": rows,
         }
     )
-
 
 # ---------------------------
 # HDF5 slice helper
@@ -301,7 +321,7 @@ async def query_file(
 
     Request body (JSON):
     - For .db/.sqlite:
-        { "sql": "SELECT ... WHERE ..." }
+        { "sql": "SELECT ... WHERE ...", "params": [...] }
 
     - For .h5/.hdf5:
         {
@@ -332,13 +352,14 @@ async def query_file(
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="JSON body must be an object")
 
-    lower_name = filename.lower()
+    if len(body) != 0:
+        lower_name = filename.lower()
 
-    if lower_name.endswith(".db") or lower_name.endswith(".sqlite"):
-        return handle_sqlite_query(file_path, body)
+        if lower_name.endswith(".db") or lower_name.endswith(".sqlite"):
+            return handle_sqlite_query(file_path, body)
 
-    elif lower_name.endswith(".h5") or lower_name.endswith(".hdf5"):
-        return handle_h5_slice(file_path, body)
+        elif lower_name.endswith(".h5") or lower_name.endswith(".hdf5"):
+            return handle_h5_slice(file_path, body)
 
     # Fallback: send raw file for unsupported types
     return FileResponse(
