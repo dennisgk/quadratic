@@ -285,11 +285,18 @@ def handle_h5_slice(file_path: Path, body: dict) -> JSONResponse:
 
             dset = f[dataset_path]
 
+            # Detect if this is a string dataset
+            is_string = h5py.check_string_dtype(dset.dtype) is not None
+            if is_string:
+                dset_for_read = dset.asstr()  # ensures we get Python str, not bytes
+            else:
+                dset_for_read = dset
+
             if index_spec is None:
-                data = dset[()]
+                data = dset_for_read[()]
             else:
                 idx = parse_h5_index(index_spec)
-                data = dset[idx]
+                data = dset_for_read[idx]
 
             arr = np.array(data)
     except HTTPException:
@@ -301,7 +308,7 @@ def handle_h5_slice(file_path: Path, body: dict) -> JSONResponse:
         content={
             "shape": list(arr.shape),
             "dtype": str(arr.dtype),
-            "data": arr.tolist(),
+            "data": arr.tolist(),  # now only contains JSON-safe types (str, int, float, etc.)
         }
     )
 
