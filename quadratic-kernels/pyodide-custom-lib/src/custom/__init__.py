@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, Mapping, Optional, Union, List
+from typing import Any, Dict, Iterable, Mapping, Optional, Union, List, BinaryIO
 import requests
 import numpy as np
 import pandas as pd
@@ -43,17 +43,32 @@ def _auth_headers() -> Dict[str, str]:
 # RAW FILE DOWNLOAD
 # ---------------------------------------------------------
 
-def get_raw_file(filename: str) -> bytes:
+def get_raw_file(filename: str, fileout: Optional[str] = None) -> Optional[bytes]:
     """
     GET /data/files/{filename}
-    Returns raw bytes of the file.
+
+    If fileout is None (default):
+        → returns raw bytes.
+
+    If fileout is a string path:
+        → streams the download to the file and returns None.
     """
     url = f"{BASE_URL}/data/files/{filename}"
 
-    resp = requests.get(url, headers=_auth_headers(), timeout=60)
+    # Stream=True ensures large files don't load into memory unnecessarily
+    resp = requests.get(url, headers=_auth_headers(), timeout=120, stream=True)
     resp.raise_for_status()
-    return resp.content
 
+    # If writing to fileout
+    if fileout is not None:
+        with open(fileout, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                if chunk:       # skip keepalive chunks
+                    f.write(chunk)
+        return None  # nothing returned when writing to disk
+
+    # Otherwise return the raw bytes (backward-compatible behavior)
+    return resp.content
 
 # ---------------------------------------------------------
 # SQLITE QUERY
@@ -135,13 +150,51 @@ def query_hdf5(
 # FILE UPLOAD
 # ---------------------------------------------------------
 
-def upload_file(filename: str, data: bytes) -> Dict[str, Any]:
+
+def upload_file(
+    filename: str,
+    data: Union[bytes, bytearray, str, BinaryIO],
+) -> Dict[str, Any]:
     """
     POST /data/upload/{filename}
-    Upload raw bytes; returns metadata including sha256sum.
+    Upload raw bytes or stream from a file; returns metadata including sha256sum.
+
+    Parameters
+    ----------
+    filename : str
+        Remote filename used in the URL path.
+    data : bytes | bytearray | str | BinaryIO
+        - bytes/bytearray: raw content (existing behavior).
+        - str: treated as a local file path; file is opened and streamed.
+        - BinaryIO: an already-open file-like object in binary mode.
     """
     url = f"{BASE_URL}/data/upload/{filename}"
 
+    # Case 1: raw bytes / bytearray
+    if isinstance(data, (bytes, bytearray)):
+        resp = requests.post(
+            url,
+            data=data,
+            headers=_auth_headers(),
+            timeout=120,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # Case 2: string -> treat as path, open & stream
+    if isinstance(data, str):
+        with open(data, "rb") as f:
+            resp = requests.post(
+                url,
+                data=f,               # requests will stream from the file object
+                headers=_auth_headers(),
+                timeout=120,
+            )
+        resp.raise_for_status()
+        return resp.json()
+
+    # Case 3: already-open binary file (or any file-like object)
+    # e.g., with open("file.bin", "rb") as f: upload_file("remote.bin", f)
     resp = requests.post(
         url,
         data=data,
