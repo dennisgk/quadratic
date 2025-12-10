@@ -8,6 +8,11 @@ import marshal
 import sys
 import types
 import platform
+import hashlib
+
+def hash_dataframe_pandas(df: pd.DataFrame) -> str:
+    per_element_hash = pd.util.hash_pandas_object(df, index=True).values
+    return hashlib.sha256(per_element_hash.tobytes()).hexdigest()
 
 # ---------------------------------------------------------
 # GLOBAL CONFIG
@@ -17,7 +22,7 @@ BASE_URL = "https://quadraticsc.kountouris.org"
 
 # Global JWT – must be set by the user before calling functions
 jwt: str = ""
-
+state: dict = {}
 
 # ---------------------------------------------------------
 # INTERNAL UTILITY
